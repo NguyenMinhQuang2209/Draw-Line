@@ -1,3 +1,4 @@
+using NUnit.Framework;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -163,7 +164,7 @@ public class DrawLineController : Singleton<DrawLineController>
         pathPointLineRenderIndexDict[currentConnected] = lineRenderPathPointList.Count - 1;
         pathPointLineRenderIndexDict[currentConnected2] = lineRenderPathPointList.Count - 1;
 
-        Dictionary<PathPoint, List<PathPoint>> connectedDict = new Dictionary<PathPoint, List<PathPoint>>();
+        Dictionary<PathPoint, HashSet<PathPoint>> connectedDict = new Dictionary<PathPoint, HashSet<PathPoint>>();
         for (int i = 0; i < lineRenderPathPointList.Count; i++)
         {
             PathPoint currentPointCheck = lineRenderPathPointList[i];
@@ -175,20 +176,28 @@ public class DrawLineController : Singleton<DrawLineController>
             }
             if (i != lineRenderPathPointList.Count - 1)
             {
-                next = lineRenderPathPointList[^1];
+                next = lineRenderPathPointList[i + 1];
             }
-            if (connectedDict.TryGetValue(currentPointCheck, out var listConnected))
+            HashSet<PathPoint> listConnected;
+            if (connectedDict.TryGetValue(currentPointCheck, out listConnected))
             {
-                if (previous != null)
-                {
-                    listConnected.Add(previous);
-                }
-                if (next != null)
-                {
-                    listConnected.Add(next);
-                }
+
             }
+            else
+            {
+                listConnected = new HashSet<PathPoint>();
+            }
+            if (previous != null)
+            {
+                listConnected.Add(previous);
+            }
+            if (next != null)
+            {
+                listConnected.Add(next);
+            }
+            connectedDict[currentPointCheck] = listConnected;
         }
+        bool isWinning = true;
         for (int i = 0; i < pathPointList.Count; i++)
         {
             PathPoint checkPath = pathPointList[i];
@@ -198,16 +207,43 @@ public class DrawLineController : Singleton<DrawLineController>
                 {
                     if (!listConnected.Contains(checkPath.GetConnectedPointList()[j]))
                     {
-                        return;
+                        isWinning = false;
+                        break;
                     }
                 }
             }
             else
             {
-                return;
+                isWinning = false;
+                break;
+            }
+            if (!isWinning)
+            {
+                break;
             }
         }
-        Debug.Log("Winning");
+        if (isWinning)
+        {
+            Debug.Log("Winning");
+        }
+        else
+        {
+            if (connectedDict.TryGetValue(pathPoint, out var listConnected))
+            {
+                int currentCount = 0;
+                for (int j = 0; j < pathPoint.GetConnectedPointList().Count; j++)
+                {
+                    if (listConnected.Contains(pathPoint.GetConnectedPointList()[j]))
+                    {
+                        currentCount += 1;
+                    }
+                }
+                if (currentCount == pathPoint.GetConnectedPointList().Count)
+                {
+                    ClearPath();
+                }
+            }
+        }
     }
     private void RemovePathPoint()
     {
