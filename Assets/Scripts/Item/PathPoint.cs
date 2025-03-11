@@ -7,6 +7,10 @@ public class PathPoint : MonoBehaviour
     [SerializeField] private List<PathPoint> connectList = new List<PathPoint>();
 
     private HashSet<PathPoint> connectedPathList = new HashSet<PathPoint>();
+    private void Awake()
+    {
+        connectedPathList = new HashSet<PathPoint>(connectList);
+    }
     public void AddConnectedPathPoint(PathPoint pathPoint)
     {
         connectedPathList.Add(pathPoint);
@@ -17,7 +21,7 @@ public class PathPoint : MonoBehaviour
     }
     public void ClearPathPoint()
     {
-        connectedPathList.Clear();
+        connectedPathList = new HashSet<PathPoint>(connectList);
     }
     private void OnDrawGizmos()
     {
@@ -34,10 +38,10 @@ public class PathPoint : MonoBehaviour
     }
     public List<PathPoint> GetConnectedPointList()
     {
-        return new List<PathPoint>(connectList);
+        return new List<PathPoint>(connectedPathList);
     }
     public void SetConnectionList(List<PathPoint> newList)
     {
-        connectList = newList;
+        connectedPathList = new HashSet<PathPoint>(newList);
     }
 }

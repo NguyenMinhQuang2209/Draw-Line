@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 
 public class DrawLineController : Singleton<DrawLineController>
@@ -11,7 +12,6 @@ public class DrawLineController : Singleton<DrawLineController>
     private List<PathPoint> lineRenderPathPointList = new List<PathPoint>();
 
 
-    private List<ConnectedPath> connectedPathList = new List<ConnectedPath>();
 
     private bool isDrawing = false;
     (PathPoint, PathPoint) nearestPoint;
@@ -21,10 +21,17 @@ public class DrawLineController : Singleton<DrawLineController>
     private Vector2 previousMousePos = Vector2.zero;
     private bool isShowingResult = false;
 
-    private List<(PathPoint, PathPoint)> comparedPointList = new List<(PathPoint, PathPoint)>();
+    private HashSet<(PathPoint, PathPoint)> comparedPointList = new HashSet<(PathPoint, PathPoint)>();
     private List<(PathPoint, PathPoint)> storedPointList = new List<(PathPoint, PathPoint)>();
 
     PathPoint previousPoint = null;
+
+    private Dictionary<(PathPoint, PathPoint), int> checkedPathDict = new Dictionary<(PathPoint, PathPoint), int>();
+
+    private PathPoint firstConnectPoint = null;
+
+    private Dictionary<(PathPoint, PathPoint), int> pathPointLineRenderIndexDict = new Dictionary<(PathPoint, PathPoint), int>();
+    private Dictionary<PathPoint, List<PathPoint>> connectionPathDict = new Dictionary<PathPoint, List<PathPoint>>();
     protected override void Awake()
     {
         base.Awake();
@@ -53,26 +60,45 @@ public class DrawLineController : Singleton<DrawLineController>
                 return;
             }
             Vector2 touchPoint = GetPerpendicularProjection(nearestPoint.Item1.CurrentPosition(), nearestPoint.Item2.CurrentPosition(), mousePos);
-            PathPoint firstPoint = AddNewPathPoint(touchPoint);
             float sqrtDistanceItem1 = Vector2.SqrMagnitude(touchPoint - nearestPoint.Item1.CurrentPosition());
             float sqrtDistanceItem2 = Vector2.SqrMagnitude(touchPoint - nearestPoint.Item2.CurrentPosition());
 
-            firstPoint.SetConnectionList(new List<PathPoint>() { nearestPoint.Item1, nearestPoint.Item2 });
-            nearestPoint.Item1.RemoveConnectedPathPoint(nearestPoint.Item2);
-            nearestPoint.Item1.AddConnectedPathPoint(firstPoint);
-
-            nearestPoint.Item2.RemoveConnectedPathPoint(nearestPoint.Item1);
-            nearestPoint.Item2.AddConnectedPathPoint(firstPoint);
-
-            if (sqrtDistanceItem1 > sqrtDistanceItem2)
+            if (sqrtDistanceItem1 <= 0.1f || sqrtDistanceItem2 <= 0.1f)
             {
-                nearestPoint.Item1 = firstPoint;
+                if (sqrtDistanceItem1 <= 0.1f)
+                {
+                    AddPathPoint(nearestPoint.Item1);
+                    firstConnectPoint = nearestPoint.Item2;
+                }
+                else
+                {
+                    AddPathPoint(nearestPoint.Item2);
+                    firstConnectPoint = nearestPoint.Item1;
+                }
             }
             else
             {
-                nearestPoint.Item2 = firstPoint;
+                PathPoint firstPoint = AddNewPathPoint(touchPoint);
+                firstPoint.SetConnectionList(new List<PathPoint>() { nearestPoint.Item1, nearestPoint.Item2 });
+
+                nearestPoint.Item1.RemoveConnectedPathPoint(nearestPoint.Item2);
+                nearestPoint.Item1.AddConnectedPathPoint(firstPoint);
+
+                nearestPoint.Item2.RemoveConnectedPathPoint(nearestPoint.Item1);
+                nearestPoint.Item2.AddConnectedPathPoint(firstPoint);
+
+                if (sqrtDistanceItem1 > sqrtDistanceItem2)
+                {
+                    nearestPoint.Item1 = firstPoint;
+                    firstConnectPoint = nearestPoint.Item2;
+                }
+                else
+                {
+                    nearestPoint.Item2 = firstPoint;
+                    firstConnectPoint = nearestPoint.Item1;
+                }
+                AddPathPoint(firstPoint);
             }
-            AddPathPoint(firstPoint);
         }
         if (Input.GetMouseButtonUp(0))
         {
@@ -87,26 +113,101 @@ public class DrawLineController : Singleton<DrawLineController>
                 previousMousePos = mousePos;
                 UpdatePathPointLineRender();
             }
-            if (isShowingResult)
-            {
-                isShowingResult = false;
-            }
         }
         if (Input.GetKeyDown(KeyCode.Space))
         {
             isShowingResult = true;
         }
+
+        if (Input.GetKeyDown(KeyCode.B))
+        {
+            EditorApplication.isPaused = true;
+        }
+    }
+    private List<PathPoint> GetPathPointDict(PathPoint pathPoint)
+    {
+        if (connectionPathDict.TryGetValue(pathPoint, out var list))
+        {
+            return list;
+        }
+        return new List<PathPoint>();
     }
     private void AddPathPoint(PathPoint pathPoint)
     {
         if (startPoint != null)
         {
+            bool canContinue = false;
+            for (int i = 0; i < startPoint.GetConnectedPointList().Count; i++)
+            {
+                if (startPoint.GetConnectedPointList()[i] == pathPoint)
+                {
+                    canContinue = true;
+                    break;
+                }
+            }
+            if (!canContinue)
+            {
+                return;
+            }
             previousPoint = startPoint;
             storedPointList.Add((startPoint, pathPoint));
             storedPointList.Add((pathPoint, startPoint));
         }
+        List<PathPoint> storedListTemp = GetPathPointDict(pathPoint);
+        storedListTemp.Add(startPoint);
+        connectionPathDict[pathPoint] = storedListTemp;
+        (PathPoint, PathPoint) currentConnected = (startPoint, pathPoint);
+        (PathPoint, PathPoint) currentConnected2 = (pathPoint, startPoint);
         startPoint = pathPoint;
         lineRenderPathPointList.Add(pathPoint);
+        pathPointLineRenderIndexDict[currentConnected] = lineRenderPathPointList.Count - 1;
+        pathPointLineRenderIndexDict[currentConnected2] = lineRenderPathPointList.Count - 1;
+
+        Dictionary<PathPoint, List<PathPoint>> connectedDict = new Dictionary<PathPoint, List<PathPoint>>();
+        for (int i = 0; i < lineRenderPathPointList.Count; i++)
+        {
+            PathPoint currentPointCheck = lineRenderPathPointList[i];
+            PathPoint previous = null;
+            PathPoint next = null;
+            if (i != 0)
+            {
+                previous = lineRenderPathPointList[i - 1];
+            }
+            if (i != lineRenderPathPointList.Count - 1)
+            {
+                next = lineRenderPathPointList[^1];
+            }
+            if (connectedDict.TryGetValue(currentPointCheck, out var listConnected))
+            {
+                if (previous != null)
+                {
+                    listConnected.Add(previous);
+                }
+                if (next != null)
+                {
+                    listConnected.Add(next);
+                }
+            }
+        }
+        for (int i = 0; i < pathPointList.Count; i++)
+        {
+            PathPoint checkPath = pathPointList[i];
+            if (connectedDict.TryGetValue(checkPath, out var listConnected))
+            {
+                for (int j = 0; j < checkPath.GetConnectedPointList().Count; j++)
+                {
+                    if (!listConnected.Contains(checkPath.GetConnectedPointList()[j]))
+                    {
+                        return;
+                    }
+                }
+            }
+            else
+            {
+                return;
+            }
+        }
+        Debug.Log("Winning");
     }
     private void RemovePathPoint()
     {
@@ -116,13 +217,25 @@ public class DrawLineController : Singleton<DrawLineController>
             if (lineRenderPathPointList.Count > 1)
             {
                 previousPoint = lineRenderPathPointList[^2];
-                storedPointList.Remove((startPoint, previousPoint));
-                storedPointList.Remove((previousPoint, startPoint));
             }
             else
             {
                 previousPoint = null;
             }
+            nearestPoint.Item1 = startPoint;
+            nearestPoint.Item2 = previousPoint != null ? previousPoint : firstConnectPoint;
+            int index = lineRenderPathPointList.Count - 1;
+            (PathPoint, PathPoint) result = (null, null);
+            foreach (var (key, value) in pathPointLineRenderIndexDict)
+            {
+                if (value == index)
+                {
+                    result = key;
+                }
+            }
+            (PathPoint, PathPoint) result2 = (result.Item2, result.Item1);
+            pathPointLineRenderIndexDict.Remove(result);
+            pathPointLineRenderIndexDict.Remove(result2);
             lineRenderPathPointList.RemoveAt(lineRenderPathPointList.Count - 1);
         }
     }
@@ -144,29 +257,39 @@ public class DrawLineController : Singleton<DrawLineController>
 
         if (isNotCurrentPoint)
         {
-            bool needCheck = true;
-            if (previousPoint != null)
+            List<PathPoint> resultList1 = new List<PathPoint>();
+            List<PathPoint> resultList2 = new List<PathPoint>();
+            comparedPointList.Clear();
+            GetPathPointToAVector(nearPoint, nearestPoint.Item1, ref resultList1);
+            GetPathPointToAVector(nearPoint, nearestPoint.Item2, ref resultList2);
+
+            List<PathPoint> resultList;
+            if (resultList1.Count > resultList2.Count)
             {
-                if ((nearPoint.Item1 == startPoint || nearPoint.Item2 == startPoint) &&
-                (nearPoint.Item2 == previousPoint || nearPoint.Item1 == previousPoint))
-                {
-                    needCheck = false;
-                    RemovePathPoint();
-                }
-                nearestPoint = nearPoint;
+                resultList = resultList2;
             }
-            if (needCheck)
+            else if (resultList1.Count == resultList2.Count)
             {
-                nearestPoint = nearPoint;
-                List<PathPoint> resultList = new List<PathPoint>();
-                comparedPointList.Clear();
-                GetPathPointToAVector(true, nearestPoint, startPoint, ref resultList);
-                for (int i = 0; i < resultList.Count; i++)
+                Vector2 touchPoint = GetPerpendicularProjection(nearPoint.Item1.CurrentPosition(), nearPoint.Item2.CurrentPosition(), mousePos);
+
+                if (Vector2.SqrMagnitude(nearestPoint.Item1.CurrentPosition() - touchPoint) > Vector2.SqrMagnitude(nearestPoint.Item2.CurrentPosition() - touchPoint))
                 {
-                    AddPathPoint(resultList[i]);
-                    Debug.Log(resultList[i]);
+                    resultList = resultList2;
                 }
-                Debug.Log("------------");
+                else
+                {
+                    resultList = resultList1;
+                }
+            }
+            else
+            {
+                resultList = resultList1;
+            }
+            nearestPoint = nearPoint;
+            resultList.Remove(startPoint);
+            for (int i = 0; i < resultList.Count; i++)
+            {
+                AddPathPoint(resultList[i]);
             }
         }
         lineRender.positionCount = lineRenderPathPointList.Count + 1;
@@ -177,48 +300,31 @@ public class DrawLineController : Singleton<DrawLineController>
         Vector2 mouseTouchPosition = GetPerpendicularProjection(nearestPoint.Item1.CurrentPosition(), nearestPoint.Item2.CurrentPosition(), mousePos);
         lineRender.SetPosition(lineRenderPathPointList.Count, mouseTouchPosition);
     }
-    private void GetPathPointToAVector(bool isStartPoint, (PathPoint, PathPoint) comparePoints, PathPoint checkPoint, ref List<PathPoint> result)
+    private void GetPathPointToAVector((PathPoint, PathPoint) comparePoints, PathPoint checkPoint, ref List<PathPoint> result)
     {
-        if (checkPoint == comparePoints.Item1 || checkPoint == comparePoints.Item2)
+        Queue<List<PathPoint>> queue = new Queue<List<PathPoint>>();
+        HashSet<PathPoint> visited = new HashSet<PathPoint>();
+
+        queue.Enqueue(new List<PathPoint>() { checkPoint });
+        while (queue.Count > 0)
         {
-            if (checkPoint == comparePoints.Item1)
+            List<PathPoint> path = queue.Dequeue();
+            PathPoint lastPoint = path[^1];
+            if (lastPoint == comparePoints.Item1 || lastPoint == comparePoints.Item2)
             {
-                result.Add(comparePoints.Item1);
+                result.Clear();
+                result.AddRange(path);
+                return;
             }
-            else
+            foreach (PathPoint connectPoint in lastPoint.GetConnectedPointList())
             {
-                result.Add(comparePoints.Item2);
-            }
-            return;
-        }
-        else
-        {
-            result.Add(checkPoint);
-            List<PathPoint> storePointListTemp = new List<PathPoint>();
-            bool isInit = false;
-            for (int i = 0; i < checkPoint.GetConnectedPointList().Count; i++)
-            {
-                List<PathPoint> tempPoint = new List<PathPoint>();
-                (PathPoint, PathPoint) currentComparePoint = (checkPoint, checkPoint.GetConnectedPointList()[i]);
-                if (!comparedPointList.Contains(currentComparePoint))
+                if (!visited.Contains(connectPoint))
                 {
-                    comparedPointList.Add(currentComparePoint);
-                    GetPathPointToAVector(false, comparePoints, checkPoint.GetConnectedPointList()[i], ref tempPoint);
-                    if (!isInit)
-                    {
-                        isInit = true;
-                        storePointListTemp = new List<PathPoint>(tempPoint);
-                    }
-                    else
-                    {
-                        if (tempPoint.Count < storePointListTemp.Count)
-                        {
-                            storePointListTemp = new List<PathPoint>(tempPoint);
-                        }
-                    }
+                    visited.Add(connectPoint);
+                    List<PathPoint> newPath = new List<PathPoint>(path) { connectPoint };
+                    queue.Enqueue(newPath);
                 }
             }
-            result.AddRange(storePointListTemp);
         }
     }
     private PathPoint AddNewPathPoint(Vector2 position)
@@ -245,73 +351,46 @@ public class DrawLineController : Singleton<DrawLineController>
     private (PathPoint, PathPoint) GetNearestPathPoints(Vector2 mousePos)
     {
         (PathPoint, PathPoint) result = (null, null);
-        float currentDistance = 0;
-        bool haveValue = false;
+        checkedPathDict.Clear();
+        float currentDistance = 0f;
+        bool isFirstItem = true;
+
         for (int i = 0; i < pathPointList.Count; i++)
         {
             PathPoint currentPoint = pathPointList[i];
-            if (haveValue)
+            for (int j = 0; j < currentPoint.GetConnectedPointList().Count; j++)
             {
-                float checkDistance = Vector2.SqrMagnitude(pathPointList[i].CurrentPosition() - mousePos);
-                if (checkDistance < currentDistance)
+                PathPoint comparePoint = currentPoint.GetConnectedPointList()[j];
+                if (isFirstItem)
                 {
-                    for (int j = 0; j < pathPointList[i].GetConnectedPointList().Count; j++)
+                    if (!IsOutOfDistance(currentPoint.CurrentPosition(), comparePoint.CurrentPosition(), mousePos))
                     {
-                        PathPoint connectPoint = pathPointList[i].GetConnectedPointList()[j];
-                        if (!IsOutOfDistance(currentPoint.CurrentPosition(), connectPoint.CurrentPosition(), mousePos))
+                        Vector2 touchLinePos = GetPerpendicularProjection(currentPoint.CurrentPosition(), comparePoint.CurrentPosition(), mousePos);
+                        currentDistance = Vector2.SqrMagnitude(mousePos - touchLinePos);
+                        isFirstItem = false;
+                        result.Item1 = currentPoint;
+                        result.Item2 = comparePoint;
+                    }
+                }
+                else
+                {
+                    if (!checkedPathDict.ContainsKey((currentPoint, comparePoint)) && !checkedPathDict.ContainsKey((comparePoint, currentPoint)))
+                    {
+                        if (!IsOutOfDistance(currentPoint.CurrentPosition(), comparePoint.CurrentPosition(), mousePos))
                         {
-                            result.Item1 = pathPointList[i];
-                            currentDistance = checkDistance;
-                            continue;
+                            Vector2 touchLinePos = GetPerpendicularProjection(currentPoint.CurrentPosition(), comparePoint.CurrentPosition(), mousePos);
+                            float checkDistance = Vector2.SqrMagnitude(mousePos - touchLinePos);
+                            if (checkDistance < currentDistance)
+                            {
+                                currentDistance = checkDistance;
+                                result.Item1 = currentPoint;
+                                result.Item2 = comparePoint;
+                            }
                         }
                     }
                 }
-            }
-            else
-            {
-                for (int j = 0; j < pathPointList[i].GetConnectedPointList().Count; j++)
-                {
-                    PathPoint connectPoint = pathPointList[i].GetConnectedPointList()[j];
-                    if (!IsOutOfDistance(currentPoint.CurrentPosition(), connectPoint.CurrentPosition(), mousePos))
-                    {
-                        currentDistance = Vector2.SqrMagnitude(pathPointList[i].CurrentPosition() - mousePos);
-                        haveValue = true;
-                        result.Item1 = pathPointList[i];
-                        continue;
-                    }
-                }
-            }
-        }
-        if (result.Item1 == null)
-        {
-            return result;
-        }
-        List<PathPoint> connectedList = result.Item1.GetConnectedPointList();
-        bool haveItem2 = false;
-        float connectedDistance = 0;
-        for (int i = 1; i < connectedList.Count; i++)
-        {
-            float compareDistance = DistanceFromPointToLine(result.Item1.CurrentPosition(), connectedList[i].CurrentPosition(), mousePos);
-            if (haveItem2)
-            {
-                if (compareDistance < connectedDistance)
-                {
-                    if (!IsOutOfDistance(result.Item1.CurrentPosition(), connectedList[i].CurrentPosition(), mousePos))
-                    {
-                        result.Item2 = connectedList[i];
-                        connectedDistance = compareDistance;
-                    }
-                }
-            }
-            else
-            {
-                if (!IsOutOfDistance(result.Item1.CurrentPosition(), connectedList[i].CurrentPosition(), mousePos))
-                {
-                    result.Item2 = connectedList[i];
-                    connectedDistance = compareDistance;
-                    haveItem2 = true;
-                    continue;
-                }
+                checkedPathDict[(currentPoint, comparePoint)] = 1;
+                checkedPathDict[(comparePoint, currentPoint)] = 1;
             }
         }
         return result;
@@ -353,7 +432,7 @@ public class DrawLineController : Singleton<DrawLineController>
         {
             pathPointList[i].ClearPathPoint();
         }
-        pathPointListTemp = new List<PathPoint>(pathPointList);
+        pathPointList = new List<PathPoint>(pathPointListTemp);
         if (addPoint != null)
         {
             addPoint.gameObject.SetActive(false);
@@ -362,7 +441,8 @@ public class DrawLineController : Singleton<DrawLineController>
         storedPointList.Clear();
         comparedPointList.Clear();
         lineRenderPathPointList.Clear();
-
+        connectionPathDict.Clear();
+        pathPointLineRenderIndexDict.Clear();
     }
     public Vector2 GetMousePosition()
     {
