@@ -289,7 +289,14 @@ public class DrawLineController : Singleton<DrawLineController>
             resultList.Remove(startPoint);
             for (int i = 0; i < resultList.Count; i++)
             {
-                AddPathPoint(resultList[i]);
+                if (resultList[0] == previousPoint)
+                {
+                    RemovePathPoint();
+                }
+                else
+                {
+                    AddPathPoint(resultList[i]);
+                }
             }
         }
         lineRender.positionCount = lineRenderPathPointList.Count + 1;
