@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -31,6 +32,8 @@ public class DrawLineController : Singleton<DrawLineController>
 
     private PathPoint firstConnectPoint = null;
 
+    private bool isEnding = false;
+
     private Dictionary<(PathPoint, PathPoint), int> pathPointLineRenderIndexDict = new Dictionary<(PathPoint, PathPoint), int>();
     private Dictionary<PathPoint, List<PathPoint>> connectionPathDict = new Dictionary<PathPoint, List<PathPoint>>();
     protected override void Awake()
@@ -51,6 +54,10 @@ public class DrawLineController : Singleton<DrawLineController>
     }
     private void Update()
     {
+        if (isEnding)
+        {
+            return;
+        }
         if (Input.GetMouseButtonDown(0))
         {
             isDrawing = true;
@@ -103,8 +110,7 @@ public class DrawLineController : Singleton<DrawLineController>
         }
         if (Input.GetMouseButtonUp(0))
         {
-            isDrawing = false;
-            ClearPath();
+            EndGame();
         }
         if (isDrawing)
         {
@@ -124,6 +130,12 @@ public class DrawLineController : Singleton<DrawLineController>
         {
             EditorApplication.isPaused = true;
         }
+    }
+    private void EndGame()
+    {
+        isDrawing = false;
+        ClearPath();
+        isEnding = false;
     }
     private List<PathPoint> GetPathPointDict(PathPoint pathPoint)
     {
@@ -240,19 +252,26 @@ public class DrawLineController : Singleton<DrawLineController>
                 }
                 if (currentCount == pathPoint.GetConnectedPointList().Count)
                 {
-                    ClearPath();
+                    isDrawing = false;
+                    StartCoroutine(ReloadPath());
                 }
             }
         }
     }
+    private IEnumerator ReloadPath()
+    {
+        isEnding = true;
+        yield return new WaitForSeconds(1f);
+        EndGame();
+    }
     private void RemovePathPoint()
     {
-        if (lineRenderPathPointList.Count > 0)
+        if (lineRenderPathPointList.Count > 1)
         {
-            startPoint = lineRenderPathPointList[^1];
-            if (lineRenderPathPointList.Count > 1)
+            startPoint = lineRenderPathPointList[^2];
+            if (lineRenderPathPointList.Count > 2)
             {
-                previousPoint = lineRenderPathPointList[^2];
+                previousPoint = lineRenderPathPointList[^3];
             }
             else
             {
@@ -278,7 +297,6 @@ public class DrawLineController : Singleton<DrawLineController>
     private void UpdatePathPointLineRender()
     {
         Vector2 mousePos = GetMousePosition();
-
         (PathPoint, PathPoint) nearPoint = GetNearestPathPoints(mousePos);
         if (nearPoint.Item1 == null || nearPoint.Item2 == null)
         {
@@ -334,6 +352,14 @@ public class DrawLineController : Singleton<DrawLineController>
                     AddPathPoint(resultList[i]);
                 }
             }
+
+            if (startPoint != null)
+            {
+                if (lineRenderPathPointList.Count > 0 && lineRenderPathPointList[^1] != startPoint)
+                {
+                    AddPathPoint(startPoint);
+                }
+            }
         }
         lineRender.positionCount = lineRenderPathPointList.Count + 1;
         for (int i = 0; i < lineRenderPathPointList.Count; i++)
@@ -386,7 +412,13 @@ public class DrawLineController : Singleton<DrawLineController>
         Vector2 AB = B - A;
         Vector2 AC = C - A;
 
-        float projectionScale = Vector2.Dot(AC, AB) / Vector2.Dot(AB, AB);
+        float dot2 = Vector2.Dot(AB, AB);
+        float dot1 = Vector2.Dot(AC, AB);
+        float projectionScale = 0;
+        if (dot2 != 0)
+        {
+            projectionScale = dot1 / dot2;
+        }
         Vector2 P = A + projectionScale * AB;
         return P;
     }
@@ -453,7 +485,14 @@ public class DrawLineController : Singleton<DrawLineController>
         Vector2 direction = B - A;
         Vector2 AC = C - A;
 
-        float t = Vector2.Dot(AC, direction) / Vector2.Dot(direction, direction);
+        float dot1 = Vector2.Dot(AC, direction);
+        float dot2 = Vector2.Dot(direction, direction);
+
+        float t = 0;
+        if (dot2 != 0)
+        {
+            t = dot1 / dot2;
+        }
         Vector2 projection = A + t * direction;
 
         return projection;
@@ -463,7 +502,11 @@ public class DrawLineController : Singleton<DrawLineController>
         Vector2 AB = B - A;
         Vector2 AP = P - A;
         float crossProduct = AB.x * AP.y - AB.y * AP.x;
-        float distance = Mathf.Abs(crossProduct) / AB.magnitude;
+        float distance = 0;
+        if (AB.magnitude != 0)
+        {
+            distance = Mathf.Abs(crossProduct) / AB.magnitude;
+        }
         return distance;
     }
 
@@ -481,6 +524,7 @@ public class DrawLineController : Singleton<DrawLineController>
             addPoint.gameObject.SetActive(false);
         }
         startPoint = null;
+        previousPoint = null;
         storedPointList.Clear();
         comparedPointList.Clear();
         lineRenderPathPointList.Clear();
