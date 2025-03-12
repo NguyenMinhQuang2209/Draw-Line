@@ -8,6 +8,7 @@ public class DrawLineController : Singleton<DrawLineController>
 {
     [SerializeField] private Transform nodeContainer;
     [SerializeField] private LineRenderer lineRender;
+    [SerializeField] private LineRenderer lineRenderPreview;
     private List<PathPoint> pathPointList = new List<PathPoint>();
     private List<PathPoint> pathPointListTemp = new List<PathPoint>();
 
@@ -51,6 +52,23 @@ public class DrawLineController : Singleton<DrawLineController>
             }
         }
         pathPointListTemp = new List<PathPoint>(pathPointList);
+        /*List<Vector2> lineRenderPreviewList = new List<Vector2>();
+
+        for (int i = 0; i < pathPointListTemp.Count; i++)
+        {
+            PathPoint currentPoint = pathPointListTemp[i];
+            for (int j = 0; j < currentPoint.GetDefaultConnectedList().Count; j++)
+            {
+                lineRenderPreviewList.Add(currentPoint.CurrentPosition());
+                lineRenderPreviewList.Add(currentPoint.GetDefaultConnectedList()[j].CurrentPosition());
+            }
+        }
+
+        lineRenderPreview.positionCount = lineRenderPreviewList.Count;
+        for (int i = 0; i < lineRenderPreviewList.Count; i++)
+        {
+            lineRenderPreview.SetPosition(i, lineRenderPreviewList[i]);
+        }*/
     }
     private void Update()
     {

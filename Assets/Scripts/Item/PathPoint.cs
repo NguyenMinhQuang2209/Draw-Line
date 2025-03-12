@@ -31,8 +31,12 @@ public class PathPoint : MonoBehaviour
             Gizmos.DrawLine(transform.position, connectList[i].transform.position);
         }
     }
+    public List<PathPoint> GetDefaultConnectedList()
+    {
+        return new List<PathPoint>(connectList);
+    }
 
-    internal Vector2 CurrentPosition()
+    public Vector2 CurrentPosition()
     {
         return transform.position;
     }
@@ -43,5 +47,9 @@ public class PathPoint : MonoBehaviour
     public void SetConnectionList(List<PathPoint> newList)
     {
         connectedPathList = new List<PathPoint>(newList);
+    }
+    public void SetDefaultConnectionList(List<PathPoint> pathPoints)
+    {
+        connectList = pathPoints;
     }
 }

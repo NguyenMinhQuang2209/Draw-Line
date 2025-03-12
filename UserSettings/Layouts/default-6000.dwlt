@@ -19,7 +19,7 @@ MonoBehaviour:
     width: 1536
     height: 772.8
   m_ShowMode: 4
-  m_Title: Project
+  m_Title: Inspector
   m_RootView: {fileID: 3}
   m_MinSize: {x: 875, y: 300}
   m_MaxSize: {x: 10000, y: 10000}
@@ -147,7 +147,7 @@ MonoBehaviour:
   m_MinSize: {x: 400, y: 100}
   m_MaxSize: {x: 32384, y: 16192}
   vertical: 0
-  controlID: 98
+  controlID: 107
   draggingID: 0
 --- !u!114 &7
 MonoBehaviour:
@@ -173,7 +173,7 @@ MonoBehaviour:
   m_MinSize: {x: 100, y: 100}
   m_MaxSize: {x: 8096, y: 16192}
   vertical: 1
-  controlID: 19
+  controlID: 40
   draggingID: 0
 --- !u!114 &8
 MonoBehaviour:
@@ -496,8 +496,7 @@ MonoBehaviour:
     m_ShowAllHits: 0
     m_SkipHidden: 0
     m_SearchArea: 1
-    m_Folders:
-    - Assets/Prefabs
+    m_Folders: []
     m_Globs: []
     m_ProductIds: 
     m_AnyWithAssetOrigin: 0
@@ -515,7 +514,7 @@ MonoBehaviour:
     scrollPos: {x: 0, y: 32.400024}
     m_SelectedIDs: 64f90000
     m_LastClickedID: 63844
-    m_ExpandedIDs: 00000000f4b20000f6b20000f8b20000fab20000
+    m_ExpandedIDs: 0000000018b300001ab300001cb300001eb3000020b3000022b3000024b3000026b3000028b30000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -544,7 +543,7 @@ MonoBehaviour:
     scrollPos: {x: 0, y: 0}
     m_SelectedIDs: 
     m_LastClickedID: 0
-    m_ExpandedIDs: 00000000f4b20000f6b20000f8b20000fab20000
+    m_ExpandedIDs: 0000000018b300001ab300001cb300001eb3000020b3000022b3000024b3000026b3000028b30000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -1259,9 +1258,9 @@ MonoBehaviour:
   m_AudioPlay: 0
   m_DebugDrawModesUseInteractiveLightBakingData: 0
   m_Position:
-    m_Target: {x: 0.9631362, y: 0.720124, z: 0.05930164}
+    m_Target: {x: -0.64304745, y: -1.3729532, z: 0.056342237}
     speed: 2
-    m_Value: {x: 0.9631362, y: 0.720124, z: 0.05930164}
+    m_Value: {x: -0.64304745, y: -1.3729532, z: 0.056342237}
   m_RenderMode: 0
   m_CameraMode:
     drawMode: 0
@@ -1311,9 +1310,9 @@ MonoBehaviour:
     speed: 2
     m_Value: {x: 0, y: 0, z: 0, w: 1}
   m_Size:
-    m_Target: 4.0698123
+    m_Target: 4.365769
     speed: 2
-    m_Value: 4.0698123
+    m_Value: 4.365769
   m_Ortho:
     m_Target: 1
     speed: 2
