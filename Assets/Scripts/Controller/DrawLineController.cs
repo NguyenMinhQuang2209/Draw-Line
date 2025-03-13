@@ -8,7 +8,6 @@ public class DrawLineController : Singleton<DrawLineController>
 {
     [SerializeField] private Transform nodeContainer;
     [SerializeField] private LineRenderer lineRender;
-    [SerializeField] private LineRenderer lineRenderPreview;
     private List<PathPoint> pathPointList = new List<PathPoint>();
     private List<PathPoint> pathPointListTemp = new List<PathPoint>();
 
@@ -37,12 +36,7 @@ public class DrawLineController : Singleton<DrawLineController>
 
     private Dictionary<(PathPoint, PathPoint), int> pathPointLineRenderIndexDict = new Dictionary<(PathPoint, PathPoint), int>();
     private Dictionary<PathPoint, List<PathPoint>> connectionPathDict = new Dictionary<PathPoint, List<PathPoint>>();
-    protected override void Awake()
-    {
-        base.Awake();
-        GenerateNodeList();
-    }
-    private void GenerateNodeList()
+    public void GenerateNodeList()
     {
         foreach (Transform child in nodeContainer.transform)
         {
@@ -254,7 +248,9 @@ public class DrawLineController : Singleton<DrawLineController>
         }
         if (isWinning)
         {
-            Debug.Log("Winning");
+            isDrawing = false;
+            isEnding = true;
+            MainUIController.Instance.ShowWinningForm();
         }
         else
         {

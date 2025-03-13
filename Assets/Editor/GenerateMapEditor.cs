@@ -73,51 +73,7 @@ public class GenerateMapEditor : Editor
         inputIndex = EditorGUILayout.IntField(new GUIContent("Enter Map Index:"), inputIndex);
         if (GUILayout.Button("Load Json Map Data"))
         {
-            string fileName = $"MapData_{inputIndex}";
-            string path = $"Map/{fileName}";
-            TextAsset fileData = Resources.Load<TextAsset>(path);
-
-            MapData mapData = JsonConvert.DeserializeObject<MapData>(fileData.text);
-
-            List<PathPointItem> pathPointItemList = new List<PathPointItem>();
-            for (int i = 0; i < mapData.nodeItemList.Count; i++)
-            {
-                MapDataNodeItem mapDataNodeItem = mapData.nodeItemList[i];
-                PathPointItem currentPathPointItem = new PathPointItem();
-                currentPathPointItem.pathPointID = mapDataNodeItem.nodeID;
-                currentPathPointItem.pos = new Vector2(mapDataNodeItem.positionX, mapDataNodeItem.positionY);
-                pathPointItemList.Add(currentPathPointItem);
-            }
-            List<PathPointConnection> pathPointConnections = new List<PathPointConnection>();
-            for (int i = 0; i < mapData.nodeConnectedList.Count; i++)
-            {
-                MapDataConnectedNodeItem item = mapData.nodeConnectedList[i];
-                PathPointConnection connect = new PathPointConnection();
-                connect.pathPointID = item.nodeID;
-                connect.connectedList = item.connectedNodeList;
-
-                pathPointConnections.Add(connect);
-            }
-            controller.SpawnPoints(pathPointItemList, pathPointConnections);
+            controller.GenerateMap(inputIndex);
         }
     }
-}
-[System.Serializable]
-public struct MapData
-{
-    public List<MapDataNodeItem> nodeItemList;
-    public List<MapDataConnectedNodeItem> nodeConnectedList;
-}
-[System.Serializable]
-public struct MapDataConnectedNodeItem
-{
-    public int nodeID;
-    public List<int> connectedNodeList;
-}
-[System.Serializable]
-public struct MapDataNodeItem
-{
-    public int nodeID;
-    public float positionX;
-    public float positionY;
 }

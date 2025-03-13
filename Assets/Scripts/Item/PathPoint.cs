@@ -7,6 +7,7 @@ public class PathPoint : MonoBehaviour
     [SerializeField] private List<PathPoint> connectList = new List<PathPoint>();
 
     private List<PathPoint> connectedPathList = new List<PathPoint>();
+
     private void Awake()
     {
         connectedPathList = new List<PathPoint>(connectList);
@@ -51,5 +52,15 @@ public class PathPoint : MonoBehaviour
     public void SetDefaultConnectionList(List<PathPoint> pathPoints)
     {
         connectList = pathPoints;
+        Transform lineRenderWrap = PrefabController.Instance.lineRenderWrap;
+        LineRenderer prefab = PrefabController.Instance.lineRender;
+        for (int i = 0; i < connectList.Count; i++)
+        {
+            PathPoint targetPoint = connectList[i];
+            LineRenderer current = Instantiate(prefab, new Vector3(0, 0, 0), Quaternion.identity, lineRenderWrap.transform);
+            current.positionCount = 2;
+            current.SetPosition(0, transform.position);
+            current.SetPosition(1, targetPoint.transform.position);
+        }
     }
 }
